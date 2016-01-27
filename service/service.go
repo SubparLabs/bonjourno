@@ -2,6 +2,7 @@ package service
 
 import (
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 )
 
 var (
-	nameRe = regexp.MustCompile("[^a-zA-Z0-9-_ ]")
+	nameRe = regexp.MustCompile("[^a-zA-Z0-9-_]")
 )
 
 type Service struct {
@@ -39,7 +40,20 @@ func New(host string, port int) *Service {
 }
 
 func (s *Service) Say(msg string) {
-	s.messages <- nameRe.ReplaceAllString(msg, "-")
+	msg = strings.TrimSpace(msg)
+
+	// The Finder sidebar cuts off somewhere under 20, maybe less, but
+	// browsing to the share in "Network" shows somewhere around 40.
+	if len(msg) > 40 {
+		msg = msg[:40]
+	}
+
+	// Some characters cause the service to be ignored completely. Not sure
+	// which, so make a conservative conversion.
+	// TODO: look up the spec and only replace actually invalid chars
+	msg = nameRe.ReplaceAllString(msg, "-")
+
+	s.messages <- msg
 }
 
 func (s *Service) Stop() {
