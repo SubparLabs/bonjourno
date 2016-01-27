@@ -68,7 +68,9 @@ func (s *Service) start() {
 	defer s.wg.Done()
 
 	var bonj *bonjour.Server
-	defer s.stopBonjour(bonj)
+	defer func(b **bonjour.Server) {
+		s.stopBonjour(*b)
+	}(&bonj)
 
 	var err error
 	var msg string
