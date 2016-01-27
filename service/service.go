@@ -63,25 +63,15 @@ func New(host string, port int, prefix string) (*Service, error) {
 }
 
 func (s *Service) Say(msg string) {
-	// Some characters cause the service to be ignored completely. Not sure
-	// which, so make a conservative conversion.
-	// TODO: look up the spec and only replace actually invalid chars
-
-	msg = s.prefix + msg
-
-	// Just remove stuff at the start & end. This also serves to trim
-	msg = endsRe.ReplaceAllString(msg, "")
-
-	// Replace multiple invalid chars in middle with a single -
-	msg = middleRe.ReplaceAllString(msg, "-")
-
-	// The Finder sidebar cuts off somewhere under 20, maybe less, but
-	// browsing to the share in "Network" shows somewhere around 40.
-	if len(msg) > 40 {
-		msg = msg[:40]
+	// Make sure to ignore if the message *without the prefix* is empty.
+	msg = cleanMessage(msg)
+	if msg == "" {
+		s.messages <- ""
+	} else {
+		// But don't pre-clean the prefix, cuz it might have stuff at the ends
+		// that will be middles when combined with msg.
+		s.messages <- cleanMessage(s.prefix + msg)
 	}
-
-	s.messages <- msg
 }
 
 func (s *Service) Stop() {
@@ -185,4 +175,24 @@ func (s *Service) stopBonjour(bonj *bonjour.Server) {
 		log.Info("Waiting for bonjour service to clean itself up", "waitTime", waitTime)
 		time.Sleep(waitTime)
 	}()
+}
+
+func cleanMessage(msg string) string {
+	// Some characters cause the service to be ignored completely. Not sure
+	// which, so make a conservative conversion.
+	// TODO: look up the spec and only replace actually invalid chars
+
+	// Just remove stuff at the start & end. This also serves to trim
+	msg = endsRe.ReplaceAllString(msg, "")
+
+	// Replace multiple invalid chars in middle with a single -
+	msg = middleRe.ReplaceAllString(msg, "-")
+
+	// The Finder sidebar cuts off somewhere under 20, maybe less, but
+	// browsing to the share in "Network" shows somewhere around 40.
+	if len(msg) > 40 {
+		msg = msg[:40]
+	}
+
+	return msg
 }
