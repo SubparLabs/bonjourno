@@ -29,8 +29,7 @@ func main() {
 
 	inputStream, err := buildStream()
 	if err != nil || inputStream == nil {
-		log.Error("Failed to create input stream", "err", err)
-		os.Exit(1)
+		kingpin.FatalUsage("Failed to create input stream: " + err.Error())
 	}
 
 	// Disable regular logging, cuz bonjour logs an error that isn't, and it's
