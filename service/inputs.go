@@ -5,6 +5,8 @@ import (
 	"errors"
 	"os"
 	"time"
+
+	"github.com/subparlabs/bonjourno/log"
 )
 
 type InputStream interface {
@@ -63,14 +65,37 @@ func (st StaticText) Get() string {
 }
 
 type FileLines struct {
-	lines  []string
-	ticker <-chan time.Time
+	// Track position in lines with an index, so we can compare with a reload
+	// of the file, and not loose state when nothing actually changed.
+	lines []string
+	index int
+
+	filename string
+
+	rotateTicker <-chan time.Time
+	updateTicker <-chan time.Time
 }
 
 func NewFileLines(filename string, interval time.Duration) (*FileLines, error) {
-	f, err := os.Open(filename)
-	if err != nil {
+	fl := &FileLines{
+		rotateTicker: time.Tick(interval),
+		updateTicker: time.Tick(time.Second * 3),
+		filename:     filename,
+	}
+
+	// Init with lines right away, so basic errors, like file not existing
+	// are caught when the user is paying attention.
+	if err := fl.updateLines(); err != nil {
 		return nil, err
+	}
+
+	return fl, nil
+}
+
+func (fl *FileLines) updateLines() error {
+	f, err := os.Open(fl.filename)
+	if err != nil {
+		return err
 	}
 	defer f.Close()
 
@@ -83,26 +108,29 @@ func NewFileLines(filename string, interval time.Duration) (*FileLines, error) {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, err
-	} else if len(lines) == 0 {
-		return nil, errors.New("No lines found in file")
+		return err
 	}
 
-	return &FileLines{
-		lines:  lines,
-		ticker: time.Tick(interval),
-	}, nil
+	// Save for the end, so we don't replace existing lines on error
+	fl.lines = lines
+	fl.index = fl.index % len(fl.lines)
+	return nil
 }
 
 func (fl *FileLines) Get() string {
-	// Only rotate after interval time
 	select {
-	case <-fl.ticker:
-		fl.lines = append(fl.lines[1:], fl.lines[0])
+	case <-fl.rotateTicker:
+		fl.index = (fl.index + 1) % len(fl.lines)
+	case <-fl.updateTicker:
+		// Update in Get() cuz it doesn't matter otherwise, and it's an easier
+		// cleanup than keeping a goroutine running.
+		if err := fl.updateLines(); err != nil {
+			log.Error("Failed to update lines from file", "err", err)
+		}
 	default:
 	}
 
-	return fl.lines[0]
+	return fl.lines[fl.index]
 }
 
 type FileWatcher struct {
