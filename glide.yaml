@@ -1,0 +1,4 @@
+package: .
+import:
+- package: github.com/oleksandr/bonjour
+- package: gopkg.in/alecthomas/kingpin.v2
