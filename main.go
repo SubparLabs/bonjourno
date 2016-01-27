@@ -27,21 +27,20 @@ var (
 func main() {
 	kingpin.Parse()
 
-	numMethods := 0
+	var err error
+	var inputStream service.InputStream
 	if *say != "" {
-		numMethods++
+		inputStream, err = service.NewStaticText(*say)
+	} else if *file != "" {
+		inputStream, err = service.NewFileLines(*file)
+	} else if *watch != "" {
+		inputStream, err = service.NewFileWatcher(*watch)
 	}
-	if *file != "" {
-		numMethods++
-	}
-	if *watch != "" {
-		numMethods++
-	}
-
-	if numMethods == 0 {
-		kingpin.FatalUsage("Must specify some way of saying something")
-	} else if numMethods > 1 {
-		kingpin.FatalUsage("Can only specify one way of saying something")
+	if err != nil {
+		log.Error("Failed to create input stream", "err", err)
+		os.Exit(1)
+	} else if inputStream == nil {
+		kingpin.FatalUsage("Need to specify something to say")
 	}
 
 	// Disable regular logging, cuz bonjour logs an error that isn't, and it's
@@ -56,8 +55,9 @@ func main() {
 		*port = 45897
 	}
 
+	// Create a service, and init with something to say
 	serv := service.New(*host, *port)
-	serv.Say(*say)
+	serv.Say(inputStream.Get())
 
 	// Watch for signal to clean up before we exit
 	signals := make(chan os.Signal, 1)
@@ -75,7 +75,7 @@ func main() {
 		for {
 			select {
 			case <-ticker:
-				serv.Say(time.Now().String())
+				serv.Say(inputStream.Get())
 			case <-signals:
 				log.Info("Shutting down")
 				serv.Stop()
