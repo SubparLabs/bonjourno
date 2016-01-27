@@ -44,9 +44,10 @@ func main() {
 		*port = 45897
 	}
 
-	// Create a service, and init with something to say
-	serv := service.New(*host, *port)
-	serv.Say(inputStream.Get())
+	serv, err := service.New(*host, *port)
+	if err != nil || serv == nil {
+		log.Panic("Failed to create service", "err", err)
+	}
 
 	// Watch for signal to clean up before we exit
 	signals := make(chan os.Signal, 1)
@@ -60,6 +61,9 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
+		// Init with something to say before waiting for the next interval
+		serv.Say(inputStream.Get())
 
 		for {
 			select {

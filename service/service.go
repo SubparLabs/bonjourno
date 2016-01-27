@@ -1,6 +1,8 @@
 package service
 
 import (
+	"fmt"
+	"net"
 	"regexp"
 	"sync"
 	"time"
@@ -18,13 +20,16 @@ var (
 type Service struct {
 	host string
 	port int
+	addr *net.TCPAddr
 
-	messages chan string
-	stop     chan struct{}
-	wg       sync.WaitGroup
+	messages   chan string
+	currentMsg string
+
+	stop chan struct{}
+	wg   sync.WaitGroup
 }
 
-func New(host string, port int) *Service {
+func New(host string, port int) (*Service, error) {
 	s := &Service{
 		host: host,
 		port: port,
@@ -33,10 +38,25 @@ func New(host string, port int) *Service {
 		stop:     make(chan struct{}),
 	}
 
+	if addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", host, port)); err != nil {
+		return nil, err
+	} else {
+		s.addr = addr
+	}
+
+	listener, err := net.ListenTCP("tcp", s.addr)
+	if err != nil {
+		return nil, err
+	}
+	log.Info("Listening for TCP connections", "address", s.addr)
+
+	s.wg.Add(1)
+	go s.serveTCP(listener)
+
 	s.wg.Add(1)
 	go s.start()
 
-	return s
+	return s, nil
 }
 
 func (s *Service) Say(msg string) {
@@ -63,8 +83,45 @@ func (s *Service) Stop() {
 	defer s.wg.Wait()
 
 	log.Info("Stopping service")
+
 	close(s.stop)
-	s.stop = nil
+
+	// TCPListener might still be blocked, so open a conn to it ourselves
+	// to free it up.
+	if conn, err := net.DialTCP("tcp", nil, s.addr); err != nil {
+		log.Error("Failed to close down TCP listener", "err", err)
+	} else {
+		conn.Close()
+		log.Info("Shut down TCP listener")
+	}
+}
+
+func (s *Service) serveTCP(listener net.Listener) {
+	defer s.wg.Done()
+
+	for {
+		select {
+		case <-s.stop:
+			return
+		default:
+		}
+
+		if conn, err := listener.Accept(); err != nil {
+			log.Error("Failed to accept TCP conn", "err", err)
+		} else {
+			s.wg.Add(1)
+			go func(conn net.Conn) {
+				defer s.wg.Done()
+				defer conn.Close()
+
+				if s.currentMsg != "" {
+					if _, err := conn.Write([]byte(s.currentMsg + "\n")); err != nil {
+						log.Error("Failed to write to TCP conn", "conn", conn, "err", err)
+					}
+				}
+			}(conn)
+		}
+	}
 }
 
 func (s *Service) start() {
@@ -75,18 +132,16 @@ func (s *Service) start() {
 		s.stopBonjour(*b)
 	}(&bonj)
 
-	var err error
-	var msg string
-
 	for {
 		select {
-		case newMsg := <-s.messages:
-			if newMsg != msg {
-				msg = newMsg
+		case msg := <-s.messages:
+			if msg != s.currentMsg {
+				s.currentMsg = msg
 
 				s.stopBonjour(bonj)
 
 				log.Info("Registering service", "name", msg, "host", s.host, "port", s.port)
+				var err error
 				bonj, err = bonjour.RegisterProxy(
 					msg,
 					"_afpovertcp._tcp", "local",
