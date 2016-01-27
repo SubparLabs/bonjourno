@@ -144,17 +144,20 @@ func (s *Service) start() {
 				s.currentMsg = msg
 
 				s.stopBonjour(bonj)
+				bonj = nil
 
-				log.Info("Registering service", "name", msg, "host", s.host, "port", s.port)
-				var err error
-				bonj, err = bonjour.RegisterProxy(
-					msg,
-					"_afpovertcp._tcp", "local",
-					s.port, s.host, s.host,
-					nil, nil)
-				if err != nil || bonj == nil {
-					log.Error("Failed to register service with bonjour", "err", err)
-					bonj = nil
+				if msg != "" {
+					log.Info("Registering service", "name", msg, "host", s.host, "port", s.port)
+					var err error
+					bonj, err = bonjour.RegisterProxy(
+						msg,
+						"_afpovertcp._tcp", "local",
+						s.port, s.host, s.host,
+						nil, nil)
+					if err != nil || bonj == nil {
+						log.Error("Failed to register service with bonjour", "err", err)
+						bonj = nil
+					}
 				}
 			}
 		case <-s.stop:
