@@ -79,6 +79,7 @@ func (s *Service) start() {
 				}
 			}
 		case <-s.stop:
+			log.Info("Ending bonjour-updating routine")
 			return
 		}
 	}
@@ -93,10 +94,13 @@ func (s *Service) stopBonjour(bonj *bonjour.Server) {
 	go func() {
 		defer s.wg.Done()
 
+		log.Info("Shutting down bonjour service")
 		bonj.Shutdown()
 
 		// I guess bonjour wants us to wait some unspecied
 		// amount? This is what blocking or channels are for :/
-		time.Sleep(3 * time.Second)
+		waitTime := time.Second * 5
+		log.Info("Waiting for bonjour service to clean itself up", "waitTime", waitTime)
+		time.Sleep(waitTime)
 	}()
 }

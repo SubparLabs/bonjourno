@@ -52,6 +52,7 @@ func main() {
 		*host = getLocalIP()
 	}
 	if *port == 0 {
+		// TODO: run a server that sends the same text on TCP conn
 		*port = 45897
 	}
 
@@ -63,6 +64,7 @@ func main() {
 	signal.Notify(signals, os.Interrupt, os.Kill)
 
 	// Periodically update
+	log.Info("Checking for changes at", "interval", *interval)
 	ticker := time.Tick(*interval)
 
 	var wg sync.WaitGroup
