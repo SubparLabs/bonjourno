@@ -5,14 +5,18 @@ import (
 )
 
 func Info(msg string, things ...interface{}) {
-	log(msg, "INFO", things...)
+	fmt.Println(buildLine(msg, "INFO", things...))
 }
 
 func Error(msg string, things ...interface{}) {
-	log(msg, "ERROR", things...)
+	fmt.Println(buildLine(msg, "ERROR", things...))
 }
 
-func log(msg string, level string, things ...interface{}) {
+func Panic(msg string, things ...interface{}) {
+	panic(buildLine(msg, "ERROR", things...))
+}
+
+func buildLine(msg string, level string, things ...interface{}) string {
 	for i, thing := range things {
 		if i%2 == 0 {
 			msg = fmt.Sprintf("%s %v=", msg, thing)
@@ -21,5 +25,5 @@ func log(msg string, level string, things ...interface{}) {
 		}
 	}
 
-	fmt.Printf("[%5s] %s\n", level, msg)
+	return fmt.Sprintf("[%5s] %s", level, msg)
 }
