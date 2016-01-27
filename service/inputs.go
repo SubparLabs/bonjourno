@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"os"
+	"time"
 )
 
 type InputStream interface {
@@ -62,10 +63,11 @@ func (st StaticText) Get() string {
 }
 
 type FileLines struct {
-	lines []string
+	lines  []string
+	ticker <-chan time.Time
 }
 
-func NewFileLines(filename string) (*FileLines, error) {
+func NewFileLines(filename string, interval time.Duration) (*FileLines, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -87,14 +89,20 @@ func NewFileLines(filename string) (*FileLines, error) {
 	}
 
 	return &FileLines{
-		lines: lines,
+		lines:  lines,
+		ticker: time.Tick(interval),
 	}, nil
 }
 
 func (fl *FileLines) Get() string {
-	line := fl.lines[0]
-	fl.lines = append(fl.lines[1:], fl.lines[0])
-	return line
+	// Only rotate after interval time
+	select {
+	case <-fl.ticker:
+		fl.lines = append(fl.lines[1:], fl.lines[0])
+	default:
+	}
+
+	return fl.lines[0]
 }
 
 type FileWatcher struct {

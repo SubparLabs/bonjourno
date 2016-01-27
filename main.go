@@ -15,13 +15,13 @@ import (
 )
 
 var (
-	say   = kingpin.Flag("say", "Create a share with this text").String()
-	file  = kingpin.Flag("file", "Rotate through lines in this file").ExistingFile()
-	watch = kingpin.Flag("watch", "Periodically update with the first line of this file").ExistingFile()
+	say      = kingpin.Flag("say", "Create a share with this text").String()
+	watch    = kingpin.Flag("watch", "Periodically update with the first line of this file").ExistingFile()
+	file     = kingpin.Flag("file", "Rotate through lines in this file").ExistingFile()
+	interval = kingpin.Flag("interval", "Update interval for multiple strings (not watch, for ex), like 1s or 5m").Short('i').Default("1m").Duration()
 
-	host     = kingpin.Flag("host", "Host to broadast for the service").String()
-	port     = kingpin.Flag("port", "Port to broadast for the service").Int()
-	interval = kingpin.Flag("interval", "Update interval, like 1m or 10s").Short('i').Default("5m").Duration()
+	host = kingpin.Flag("host", "Host to broadast for the service").String()
+	port = kingpin.Flag("port", "Port to broadast for the service").Int()
 )
 
 func main() {
@@ -54,8 +54,7 @@ func main() {
 	signal.Notify(signals, os.Interrupt, os.Kill)
 
 	// Periodically update
-	log.Info("Checking for changes at", "interval", *interval)
-	ticker := time.Tick(*interval)
+	ticker := time.Tick(time.Second * 1)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -92,7 +91,7 @@ func buildStream() (service.InputStream, error) {
 		}
 	}
 	if *file != "" {
-		if stream, err := service.NewFileLines(*file); err != nil {
+		if stream, err := service.NewFileLines(*file, *interval); err != nil {
 			return nil, err
 		} else {
 			streams = append(streams, stream)
