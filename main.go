@@ -15,10 +15,14 @@ import (
 )
 
 var (
-	say      = kingpin.Flag("say", "Create a share with this text").String()
-	watch    = kingpin.Flag("watch", "Periodically update with the first line of this file").ExistingFile()
-	file     = kingpin.Flag("file", "Rotate through lines in this file").ExistingFile()
+	// Input methods
+	say   = kingpin.Flag("say", "Create a share with this text").String()
+	watch = kingpin.Flag("watch", "Periodically update with the first line of this file").ExistingFile()
+	file  = kingpin.Flag("file", "Rotate through lines in this file").ExistingFile()
+
+	// Message options
 	interval = kingpin.Flag("interval", "Update interval for multiple strings (not watch, for ex), like 1s or 5m").Short('i').Default("1m").Duration()
+	prefix   = kingpin.Flag("prefix", "Prefix all messages with this string").String()
 
 	host = kingpin.Flag("host", "Host to broadast for the service").String()
 	port = kingpin.Flag("port", "Port to broadast for the service").Int()
@@ -44,7 +48,7 @@ func main() {
 		*port = 45897
 	}
 
-	serv, err := service.New(*host, *port)
+	serv, err := service.New(*host, *port, *prefix)
 	if err != nil || serv == nil {
 		log.Panic("Failed to create service", "err", err)
 	}

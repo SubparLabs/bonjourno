@@ -24,18 +24,21 @@ type Service struct {
 
 	messages   chan string
 	currentMsg string
+	prefix     string
 
 	stop chan struct{}
 	wg   sync.WaitGroup
 }
 
-func New(host string, port int) (*Service, error) {
+func New(host string, port int, prefix string) (*Service, error) {
 	s := &Service{
 		host: host,
 		port: port,
 
 		messages: make(chan string),
-		stop:     make(chan struct{}),
+		prefix:   prefix,
+
+		stop: make(chan struct{}),
 	}
 
 	if addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", host, port)); err != nil {
@@ -63,6 +66,8 @@ func (s *Service) Say(msg string) {
 	// Some characters cause the service to be ignored completely. Not sure
 	// which, so make a conservative conversion.
 	// TODO: look up the spec and only replace actually invalid chars
+
+	msg = s.prefix + msg
 
 	// Just remove stuff at the start & end. This also serves to trim
 	msg = endsRe.ReplaceAllString(msg, "")
