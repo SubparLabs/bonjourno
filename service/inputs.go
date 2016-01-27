@@ -10,6 +10,41 @@ type InputStream interface {
 	Get() string
 }
 
+type PriorityMultistream struct {
+	streams []InputStream
+}
+
+func NewPriorityMultistream(streams []InputStream) (InputStream, error) {
+	// Filter out nil streams. This method does it in-place, using same
+	// underlying array, YAY!
+	realStreams := streams[:0]
+	for _, stream := range streams {
+		if stream != nil {
+			realStreams = append(realStreams, stream)
+		}
+	}
+
+	if len(realStreams) == 0 {
+		return nil, errors.New("No input streams defined")
+	} else if len(realStreams) == 1 {
+		return realStreams[0], nil
+	}
+
+	return &PriorityMultistream{
+		streams: realStreams,
+	}, nil
+}
+
+func (pms *PriorityMultistream) Get() string {
+	for _, stream := range pms.streams {
+		if msg := stream.Get(); msg != "" {
+			return msg
+		}
+	}
+
+	return ""
+}
+
 type StaticText struct {
 	text string
 }

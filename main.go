@@ -27,20 +27,10 @@ var (
 func main() {
 	kingpin.Parse()
 
-	var err error
-	var inputStream service.InputStream
-	if *say != "" {
-		inputStream, err = service.NewStaticText(*say)
-	} else if *file != "" {
-		inputStream, err = service.NewFileLines(*file)
-	} else if *watch != "" {
-		inputStream, err = service.NewFileWatcher(*watch)
-	}
-	if err != nil {
+	inputStream, err := buildStream()
+	if err != nil || inputStream == nil {
 		log.Error("Failed to create input stream", "err", err)
 		os.Exit(1)
-	} else if inputStream == nil {
-		kingpin.FatalUsage("Need to specify something to say")
 	}
 
 	// Disable regular logging, cuz bonjour logs an error that isn't, and it's
@@ -86,6 +76,34 @@ func main() {
 	}()
 
 	wg.Wait()
+}
+
+func buildStream() (service.InputStream, error) {
+	var streams []service.InputStream
+
+	if *watch != "" {
+		if stream, err := service.NewFileWatcher(*watch); err != nil {
+			return nil, err
+		} else {
+			streams = append(streams, stream)
+		}
+	}
+	if *file != "" {
+		if stream, err := service.NewFileLines(*file); err != nil {
+			return nil, err
+		} else {
+			streams = append(streams, stream)
+		}
+	}
+	if *say != "" {
+		if stream, err := service.NewStaticText(*say); err != nil {
+			return nil, err
+		} else {
+			streams = append(streams, stream)
+		}
+	}
+
+	return service.NewPriorityMultistream(streams)
 }
 
 func getLocalIP() string {
