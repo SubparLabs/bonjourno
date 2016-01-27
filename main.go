@@ -10,8 +10,8 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/heewa/bonjourno/log"
-	"github.com/heewa/bonjourno/service"
+	"github.com/subparlabs/bonjourno/log"
+	"github.com/subparlabs/bonjourno/service"
 )
 
 var (

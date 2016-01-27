@@ -7,7 +7,7 @@ import (
 
 	"github.com/oleksandr/bonjour"
 
-	"github.com/heewa/bonjourno/log"
+	"github.com/subparlabs/bonjourno/log"
 )
 
 var (
