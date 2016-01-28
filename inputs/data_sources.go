@@ -3,9 +3,12 @@ package inputs
 import (
 	"bytes"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/subparlabs/bonjourno/log"
 )
 
 // DataSource - Provides data to be turned into messages
@@ -39,9 +42,10 @@ func FileWatcher(filename string) (DataSource, error) {
 				defer f.Close()
 
 				// Read and send if contents have changed
-				buffer := make([]byte, 100*1024*1024) // 100mb
-				if numRead, err := f.Read(buffer); err == nil && bytes.Compare(buffer[:numRead], fileContents) != 0 {
-					fileContents = buffer[:numRead]
+				if newContents, err := ioutil.ReadAll(f); err != nil {
+					log.Error("Failed to read file", "err", err)
+				} else if bytes.Compare(newContents, fileContents) != 0 {
+					fileContents = newContents
 					c <- string(fileContents)
 				}
 			}
@@ -60,14 +64,12 @@ func Download(url string) (DataSource, error) {
 	}
 	defer resp.Body.Close()
 
-	// Try reading just 100mb
-	buffer := make([]byte, 100*1024*1024)
-	numRead, err := resp.Body.Read(buffer)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
-	} else if numRead == 0 {
+	} else if len(body) == 0 {
 		return nil, errors.New("Empty response from that url")
 	}
 
-	return StaticText(string(buffer[:numRead]))
+	return StaticText(string(body))
 }
