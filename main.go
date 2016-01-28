@@ -1,28 +1,33 @@
 package main
 
 import (
+	"errors"
 	dontlog "log"
 	"net"
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
-	"time"
 
 	"gopkg.in/alecthomas/kingpin.v2"
 
+	"github.com/subparlabs/bonjourno/inputs"
 	"github.com/subparlabs/bonjourno/log"
 	"github.com/subparlabs/bonjourno/service"
 )
 
 var (
-	// Input methods
-	say   = kingpin.Arg("static text", "Create a share with this text").Strings()
-	watch = kingpin.Flag("watch", "Periodically update with the first line of this file").ExistingFile()
-	file  = kingpin.Flag("file", "Rotate through lines in this file").ExistingFile()
+	// Data Sources
+	say  = kingpin.Arg("static text", "Create a share with this text").Strings()
+	file = kingpin.Flag("file", "Read messages from this file, periodically updating").ExistingFile()
+
+	// How to slice the data
+	words = kingpin.Flag("words", "Go through whole text, instead of lines").Bool()
+
+	// How to choose messages
+	random = kingpin.Flag("random", "Randomize messages, instead of sequential").Bool()
 
 	// Message options
-	interval = kingpin.Flag("interval", "Update interval for multiple strings (not watch, for ex), like 1s or 5m").Short('i').Default("1m").Duration()
+	interval = kingpin.Flag("interval", "Update interval for multiple strings (not watch, for ex), like 1s or 5m").Short('i').Default("5m").Duration()
 	prefix   = kingpin.Flag("prefix", "Prefix all messages with this string").String()
 
 	host = kingpin.Flag("host", "Host to broadast for the service").String()
@@ -32,8 +37,8 @@ var (
 func main() {
 	kingpin.Parse()
 
-	inputStream, err := buildStream()
-	if err != nil || inputStream == nil {
+	msgChan, err := buildStream()
+	if err != nil || msgChan == nil {
 		kingpin.FatalUsage("Failed to create input stream: " + err.Error())
 	}
 
@@ -49,7 +54,7 @@ func main() {
 		*port = 45897
 	}
 
-	serv, err := service.New(*host, *port, *prefix)
+	serv, err := service.New(*host, *port, msgChan)
 	if err != nil || serv == nil {
 		log.Panic("Failed to create service", "err", err)
 	}
@@ -57,60 +62,59 @@ func main() {
 	// Watch for signal to clean up before we exit
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
+	<-signals
 
-	// Periodically update
-	ticker := time.Tick(time.Second * 1)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		// Init with something to say before waiting for the next interval
-		serv.Say(inputStream.Get())
-
-		for {
-			select {
-			case <-ticker:
-				serv.Say(inputStream.Get())
-			case <-signals:
-				log.Info("Shutting down")
-				serv.Stop()
-				log.Info("Stopped service")
-				return
-			}
-		}
-	}()
-
-	wg.Wait()
+	log.Info("Shutting down")
+	serv.Stop()
+	log.Info("Stopped service")
 }
 
-func buildStream() (service.InputStream, error) {
-	var streams []service.InputStream
-
-	if *watch != "" {
-		if stream, err := service.NewFileWatcher(*watch); err != nil {
-			return nil, err
-		} else {
-			streams = append(streams, stream)
-		}
-	}
+func buildStream() (<-chan string, error) {
+	var source inputs.DataSource
+	var err error
 	if *file != "" {
-		if stream, err := service.NewFileLines(*file, *interval); err != nil {
+		log.Info("Reading messages from file", "file", *file)
+		source, err = inputs.FileWatcher(*file)
+		if err != nil {
 			return nil, err
-		} else {
-			streams = append(streams, stream)
 		}
 	}
-	if len(*say) > 0 {
-		if stream, err := service.NewStaticText(strings.Join(*say, " ")); err != nil {
+	if source != nil && len(*say) > 0 {
+		return nil, errors.New("Can only specify one data source")
+	} else if len(*say) > 0 {
+		log.Info("Using a static message", "msg", *say)
+		source, err = inputs.StaticText(strings.Join(*say, " "))
+		if err != nil {
 			return nil, err
-		} else {
-			streams = append(streams, stream)
 		}
+	}
+	if source == nil {
+		return nil, errors.New("No source of data specified")
 	}
 
-	return service.NewPriorityMultistream(streams)
+	var builder inputs.MessageBuilder
+	if *words {
+		log.Info("Iterating words")
+		builder = inputs.WordGroups(source)
+	} else {
+		log.Info("Iterating lines")
+		builder = inputs.Lines(source)
+	}
+
+	var chooser inputs.MessageChooser
+	if *random {
+		log.Info("Randomizing order")
+		chooser = inputs.RandomMessageChooser(builder)
+	} else {
+		log.Info("Sequential order")
+		chooser = inputs.SequentialMessageChooser(builder)
+	}
+
+	return inputs.RateLimit(*interval,
+		inputs.LimitSize(40,
+			inputs.Cleanup(
+				inputs.Prefix(*prefix,
+					chooser)))), nil
 }
 
 func getLocalIP() string {

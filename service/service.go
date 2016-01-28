@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"net"
-	"regexp"
 	"sync"
 	"time"
 
@@ -12,31 +11,24 @@ import (
 	"github.com/subparlabs/bonjourno/log"
 )
 
-var (
-	endsRe   = regexp.MustCompile("^[^a-zA-Z0-9-_]+|[^a-zA-Z0-9-_]+$")
-	middleRe = regexp.MustCompile("[^a-zA-Z0-9-_]+")
-)
-
 type Service struct {
 	host string
 	port int
 	addr *net.TCPAddr
 
-	messages   chan string
+	messages   <-chan string
 	currentMsg string
-	prefix     string
 
 	stop chan struct{}
 	wg   sync.WaitGroup
 }
 
-func New(host string, port int, prefix string) (*Service, error) {
+func New(host string, port int, msgChan <-chan string) (*Service, error) {
 	s := &Service{
 		host: host,
 		port: port,
 
-		messages: make(chan string),
-		prefix:   prefix,
+		messages: msgChan,
 
 		stop: make(chan struct{}),
 	}
@@ -60,18 +52,6 @@ func New(host string, port int, prefix string) (*Service, error) {
 	go s.start()
 
 	return s, nil
-}
-
-func (s *Service) Say(msg string) {
-	// Make sure to ignore if the message *without the prefix* is empty.
-	msg = cleanMessage(msg)
-	if msg == "" {
-		s.messages <- ""
-	} else {
-		// But don't pre-clean the prefix, cuz it might have stuff at the ends
-		// that will be middles when combined with msg.
-		s.messages <- cleanMessage(s.prefix + msg)
-	}
 }
 
 func (s *Service) Stop() {
@@ -175,24 +155,4 @@ func (s *Service) stopBonjour(bonj *bonjour.Server) {
 		log.Info("Waiting for bonjour service to clean itself up", "waitTime", waitTime)
 		time.Sleep(waitTime)
 	}()
-}
-
-func cleanMessage(msg string) string {
-	// Some characters cause the service to be ignored completely. Not sure
-	// which, so make a conservative conversion.
-	// TODO: look up the spec and only replace actually invalid chars
-
-	// Just remove stuff at the start & end. This also serves to trim
-	msg = endsRe.ReplaceAllString(msg, "")
-
-	// Replace multiple invalid chars in middle with a single -
-	msg = middleRe.ReplaceAllString(msg, "-")
-
-	// The Finder sidebar cuts off somewhere under 20, maybe less, but
-	// browsing to the share in "Network" shows somewhere around 40.
-	if len(msg) > 40 {
-		msg = msg[:40]
-	}
-
-	return msg
 }
