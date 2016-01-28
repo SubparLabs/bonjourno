@@ -16,7 +16,6 @@ func StaticText(text string) (DataSource, error) {
 
 	go func() {
 		c <- text
-		close(c)
 	}()
 
 	return c, nil
