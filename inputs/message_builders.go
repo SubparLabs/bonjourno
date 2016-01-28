@@ -40,6 +40,7 @@ func CSVField(fieldIndex int, source DataSource) MessageBuilder {
 			if len(values) == 0 {
 				log.Error("Didn't get any values from CSV")
 			} else {
+				log.Info("Read CSV data", "num values", len(values))
 				c <- values
 			}
 		}
