@@ -29,8 +29,11 @@ var (
 	random = kingpin.Flag("random", "Randomize messages, instead of sequential").Bool()
 
 	// Message options
-	interval = kingpin.Flag("interval", "Update interval for multiple strings (not watch, for ex), like 1s or 5m").Short('i').Default("5m").Duration()
-	prefix   = kingpin.Flag("prefix", "Prefix all messages with this string").String()
+	interval  = kingpin.Flag("interval", "Update interval for multiple strings (not watch, for ex), like 1s or 5m").Short('i').Default("5m").Duration()
+	prefix    = kingpin.Flag("prefix", "Prefix all messages with this string").String()
+	lower     = kingpin.Flag("lower-case", "Lowercase messages").Bool()
+	upper     = kingpin.Flag("upper-case", "Uppercase messages").Bool()
+	mixedCase = kingpin.Flag("mixed-case", "Mixedcase messages").Bool()
 
 	host = kingpin.Flag("host", "Host to broadast for the service").String()
 	port = kingpin.Flag("port", "Port to broadast for the service").Int()
@@ -118,11 +121,24 @@ func buildStream() (<-chan string, error) {
 		chooser = inputs.SequentialMessageChooser(builder)
 	}
 
-	return inputs.RateLimit(*interval,
+	msgChan := inputs.RateLimit(*interval,
 		inputs.LimitSize(40,
 			inputs.Cleanup(
-				inputs.Prefix(*prefix,
-					chooser)))), nil
+				chooser)))
+
+	// Optional filters
+	if *prefix != "" {
+		msgChan = inputs.Prefix(*prefix, msgChan)
+	}
+	if *mixedCase {
+		msgChan = inputs.MixedCase(msgChan)
+	} else if *lower {
+		msgChan = inputs.LowerCase(msgChan)
+	} else if *upper {
+		msgChan = inputs.UpperCase(msgChan)
+	}
+
+	return msgChan, nil
 }
 
 func getLocalIP() string {

@@ -31,13 +31,14 @@ Bonjourno has several ways of combining where to get data, how to interpret it, 
 ### Misc
 1. You can prefix messages, for ex to keep them at the top of the list: `bonjourno --file=messages.txt --prefix='1-'`
 2. Specify how frequently messages should change: `bonjourno --file=messages.txt --interval=10s`
+3. Lower, upper, or mixed case: `bonjourno --file=messages.txt --mixed-case`
 
 
 Examples
 --------
 
-1. Random countries: `bonjourno --interval=10s --random --csv-field=1 --url='https://raw.githubusercontent.com/datasets/un-locode/master/data/country-codes.csv'`
-2. Companies names from Crunchbase: `bonjourno --interval=10s --random --csv-field=0 --url='https://raw.githubusercontent.com/datasets/crunchcrawl/master/companydata.csv'`
+1. mIxED cAsE rAnDOm cOuNTrIEs: `bonjourno --interval=10s --mixed-case --random --csv-field=1 --url='https://raw.githubusercontent.com/datasets/un-locode/master/data/country-codes.csv'`
+2. ALL CAP COMPANIES NAMES FROM CRUNCHBASE: `bonjourno --interval=10s --upper-case --random --csv-field=0 --url='https://raw.githubusercontent.com/datasets/crunchcrawl/master/companydata.csv'`
 3. Companies listed in the New York Stock Exchange: `bonjourno --interval=10s --random --csv-field=1 --url='https://raw.githubusercontent.com/datasets/nyse-listings/master/data/nyse-listed.csv'`
 
 Run with `--help` for usage. If you have problems, open an [Issue](https://github.com/SubparLabs/bonjourno/issues).

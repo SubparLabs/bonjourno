@@ -1,12 +1,62 @@
 package inputs
 
 import (
+	"math/rand"
 	"regexp"
+	"strings"
 	"time"
+	"unicode"
 )
 
 // MessageFilter - Filter or modifies messages
 type MessageFilter func(<-chan string) <-chan string
+
+func LowerCase(in <-chan string) <-chan string {
+	out := make(chan string)
+
+	go func() {
+		for {
+			out <- strings.ToLower(<-in)
+		}
+	}()
+
+	return out
+}
+
+func UpperCase(in <-chan string) <-chan string {
+	out := make(chan string)
+
+	go func() {
+		for {
+			out <- strings.ToUpper(<-in)
+		}
+	}()
+
+	return out
+}
+
+func MixedCase(in <-chan string) <-chan string {
+	out := make(chan string)
+
+	go func() {
+		for {
+			msg := <-in
+
+			var mixed []rune
+			for _, r := range msg {
+				if rand.Intn(2) == 0 {
+					mixed = append(mixed, unicode.ToUpper(r))
+				} else {
+					mixed = append(mixed, unicode.ToLower(r))
+				}
+			}
+
+			out <- string(mixed)
+		}
+	}()
+
+	return out
+}
 
 func RateLimit(interval time.Duration, in <-chan string) <-chan string {
 	out := make(chan string)
