@@ -19,6 +19,7 @@ var (
 	// Data Sources
 	say  = kingpin.Arg("static text", "Create a share with this text").Strings()
 	file = kingpin.Flag("file", "Read messages from this file, periodically updating").ExistingFile()
+	url  = kingpin.Flag("url", "Download data from a url").String()
 
 	// How to slice the data
 	words    = kingpin.Flag("words", "Go through whole text, instead of lines").Bool()
@@ -73,15 +74,18 @@ func main() {
 func buildStream() (<-chan string, error) {
 	var source inputs.DataSource
 	var err error
-	if *file != "" {
+	if *url != "" {
+		log.Info("Reading messages from a url", "url", *url)
+		source, err = inputs.Download(*url)
+		if err != nil {
+			return nil, err
+		}
+	} else if *file != "" {
 		log.Info("Reading messages from file", "file", *file)
 		source, err = inputs.FileWatcher(*file)
 		if err != nil {
 			return nil, err
 		}
-	}
-	if source != nil && len(*say) > 0 {
-		return nil, errors.New("Can only specify one data source")
 	} else if len(*say) > 0 {
 		log.Info("Using a static message", "msg", *say)
 		source, err = inputs.StaticText(strings.Join(*say, " "))
