@@ -25,16 +25,21 @@ func CSVField(fieldIndex int, source DataSource) MessageBuilder {
 			var values []string
 
 			// Ignore first line - comment
-			record, err := reader.Read()
-			for err == nil {
-				record, err = reader.Read()
-				if err == nil && len(record) > fieldIndex {
+			reader.Read()
+			for {
+				if record, err := reader.Read(); err == io.EOF {
+					break
+				} else if err != nil {
+					log.Error("Error reading CSV data", "err", err)
+				} else if len(record) <= fieldIndex {
+					log.Error("Error reading CSV data: index out of bounds", "# fields in record", record, "index", fieldIndex)
+				} else {
 					values = append(values, record[fieldIndex])
 				}
 			}
-			if err != nil && err != io.EOF {
-				log.Error("Failed to read CSV", "err", err)
-			} else if len(values) > 0 {
+			if len(values) == 0 {
+				log.Error("Didn't get any values from CSV")
+			} else {
 				c <- values
 			}
 		}
