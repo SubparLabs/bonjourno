@@ -21,7 +21,8 @@ var (
 	file = kingpin.Flag("file", "Read messages from this file, periodically updating").ExistingFile()
 
 	// How to slice the data
-	words = kingpin.Flag("words", "Go through whole text, instead of lines").Bool()
+	words    = kingpin.Flag("words", "Go through whole text, instead of lines").Bool()
+	csvField = kingpin.Flag("csv-field", "Iterate this field from csv data").Default("-1").Int()
 
 	// How to choose messages
 	random = kingpin.Flag("random", "Randomize messages, instead of sequential").Bool()
@@ -93,7 +94,10 @@ func buildStream() (<-chan string, error) {
 	}
 
 	var builder inputs.MessageBuilder
-	if *words {
+	if *csvField >= 0 {
+		log.Info("Iterating csv values", "field", *csvField)
+		builder = inputs.CSVField(*csvField, source)
+	} else if *words {
 		log.Info("Iterating words")
 		builder = inputs.WordGroups(source)
 	} else {

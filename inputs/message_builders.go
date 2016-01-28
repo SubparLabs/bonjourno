@@ -2,12 +2,46 @@ package inputs
 
 import (
 	"bufio"
+	"encoding/csv"
 	"fmt"
+	"io"
 	"strings"
+
+	"github.com/subparlabs/bonjourno/log"
 )
 
 // MessageBuilder - Turns raw data into a list of messages
 type MessageBuilder <-chan []string
+
+func CSVField(fieldIndex int, source DataSource) MessageBuilder {
+	c := make(chan []string)
+
+	go func() {
+		for {
+			reader := csv.NewReader(strings.NewReader(<-source))
+			reader.TrimLeadingSpace = true
+			reader.FieldsPerRecord = -1
+
+			var values []string
+
+			// Ignore first line - comment
+			record, err := reader.Read()
+			for err == nil {
+				record, err = reader.Read()
+				if err == nil && len(record) > fieldIndex {
+					values = append(values, record[fieldIndex])
+				}
+			}
+			if err != nil && err != io.EOF {
+				log.Error("Failed to read CSV", "err", err)
+			} else if len(values) > 0 {
+				c <- values
+			}
+		}
+	}()
+
+	return c
+}
 
 func Lines(source DataSource) MessageBuilder {
 	c := make(chan []string)
