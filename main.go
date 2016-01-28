@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 
 var (
 	// Input methods
-	say   = kingpin.Flag("say", "Create a share with this text").String()
+	say   = kingpin.Arg("static text", "Create a share with this text").Strings()
 	watch = kingpin.Flag("watch", "Periodically update with the first line of this file").ExistingFile()
 	file  = kingpin.Flag("file", "Rotate through lines in this file").ExistingFile()
 
@@ -101,8 +102,8 @@ func buildStream() (service.InputStream, error) {
 			streams = append(streams, stream)
 		}
 	}
-	if *say != "" {
-		if stream, err := service.NewStaticText(*say); err != nil {
+	if len(*say) > 0 {
+		if stream, err := service.NewStaticText(strings.Join(*say, " ")); err != nil {
 			return nil, err
 		} else {
 			streams = append(streams, stream)
