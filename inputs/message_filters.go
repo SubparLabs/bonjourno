@@ -58,6 +58,38 @@ func MixedCase(in <-chan string) <-chan string {
 	return out
 }
 
+func LeetSpeak(in <-chan string) <-chan string {
+	out := make(chan string)
+
+	go func() {
+
+		// Sadly a lot of symbols don't work, so use unicode stuff
+		leetMap := map[rune]rune{
+			'a': '^', 'b': 'β', 'c': '¢', 'd': 'Ð', 'e': 'ë', 'f': 'ƒ',
+			'g': '9', 'i': '1', 'l': '£', 'n': 'η', 'o': '¤', 'r': '®',
+			's': '§', 't': '†', 'u': 'µ', 'v': '√', 'w': 'ω', 'x': 'Ж',
+			'y': 'Ψ',
+		}
+
+		for {
+			msg := <-in
+
+			var leet []rune
+			for _, r := range msg {
+				if replace, ok := leetMap[unicode.ToLower(r)]; !ok || rand.Intn(2) == 0 {
+					leet = append(leet, r)
+				} else {
+					leet = append(leet, replace)
+				}
+			}
+
+			out <- string(leet)
+		}
+	}()
+
+	return out
+}
+
 func RateLimit(interval time.Duration, in <-chan string) <-chan string {
 	out := make(chan string)
 
@@ -96,8 +128,8 @@ func Cleanup(in <-chan string) <-chan string {
 	out := make(chan string)
 
 	go func() {
-		endsRe := regexp.MustCompile("^[^a-zA-Z0-9-_]+|[^a-zA-Z0-9-_]+$")
-		middleRe := regexp.MustCompile("[^a-zA-Z0-9-_]+")
+		endsRe := regexp.MustCompile("^[^a-zA-Z0-9-_|]+|[^a-zA-Z0-9-_|]+$")
+		middleRe := regexp.MustCompile("[^a-zA-Z0-9-_|]+")
 
 		for {
 			msg := <-in

@@ -34,6 +34,7 @@ var (
 	lower     = kingpin.Flag("lower-case", "Lowercase messages").Bool()
 	upper     = kingpin.Flag("upper-case", "Uppercase messages").Bool()
 	mixedCase = kingpin.Flag("mixed-case", "Mixedcase messages").Bool()
+	leet      = kingpin.Flag("l33t", "Leet speak").Bool()
 
 	host = kingpin.Flag("host", "Host to broadast for the service").String()
 	port = kingpin.Flag("port", "Port to broadast for the service").Int()
@@ -130,7 +131,9 @@ func buildStream() (<-chan string, error) {
 	if *prefix != "" {
 		msgChan = inputs.Prefix(*prefix, msgChan)
 	}
-	if *mixedCase {
+	if *leet {
+		msgChan = inputs.LeetSpeak(msgChan)
+	} else if *mixedCase {
 		msgChan = inputs.MixedCase(msgChan)
 	} else if *lower {
 		msgChan = inputs.LowerCase(msgChan)
