@@ -42,4 +42,6 @@ Examples
 2. mIxED cAsE rAnDOm cOuNTrIEs: `bonjourno --mixed-case --csv-field=1 --interval=10s --random --url='https://raw.githubusercontent.com/datasets/un-locode/master/data/country-codes.csv'`
 3. ¢¤mp^η1es £1steÐ 1n †he New Yo®k St¤ck EЖ¢han9e: `bonjourno --l33t --csv-field=1 --interval=10s --random --url='https://raw.githubusercontent.com/datasets/nyse-listings/master/data/nyse-listed.csv'`
 
+![out](https://cloud.githubusercontent.com/assets/232685/12663638/e36906b2-c5f7-11e5-9912-bfc23ee715a9.gif)
+
 Run with `--help` for usage. If you have problems, open an [Issue](https://github.com/SubparLabs/bonjourno/issues).
